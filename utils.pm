@@ -165,6 +165,8 @@ sub install_ltp
 		push(@cmds, "./configure --prefix=$ltpdir --with-open-posix-testsuite");
 	} elsif (defined($runtest) && $runtest =~ "syzkaller") {
 		push(@cmds, "./configure --prefix=$ltpdir --with-syzkaller-repros");
+		push(@cmds, "git submodule update --init ./testcases/linux-arts");
+		push(@cmds, "grep -e '__NR_mmap2' -l -R ./testcases/linux-arts/syzkaller-repros/linux | xargs rm");
 	} else {
 		push(@cmds, "./configure --prefix=$ltpdir");
 	}
