@@ -220,9 +220,9 @@ sub interactive($)
 
 sub start
 {
-	my ($self) = @_;
+	my ($self, $timeout) = @_;
 
-	$self->{'start'}->($self) if defined($self->{'start'});
+	$self->{'start'}->($self, $timeout) if defined($self->{'start'});
 }
 
 sub stop
@@ -267,7 +267,7 @@ sub reboot($$)
 
 	my $ret = force_stop($self, $timeout);
 	return $ret if ($ret != 0);
-	$ret = start($self);
+	$ret = start($self, $timeout);
 	return $ret;
 }
 
@@ -329,7 +329,7 @@ sub qemu_interactive($)
 
 sub qemu_start
 {
-	my ($self) = @_;
+	my ($self, $timeout) = @_;
 	my $cmdline = qemu_cmdline($self);
 
 	qemu_create_overlay($self) if (defined($self->{'qemu_image_overlay'}));
@@ -359,9 +359,9 @@ sub qemu_start
 
 	msg("Waiting for qemu to boot the machine\n");
 
-	wait_regexp($self, qr/login:/);
+	wait_regexp($self, qr/login:/, 0, $timeout);
 	run_string($self, "root");
-	wait_regexp($self, qr/[Pp]assword:/);
+	wait_regexp($self, qr/[Pp]assword:/, 0, $timeout);
 	run_string($self, "$self->{'root_password'}");
 	wait_prompt($self);
 	run_string($self, "export PS1=\$ ");
@@ -503,7 +503,7 @@ sub qemu_init
 
 sub ssh_start
 {
-	my ($self) = @_;
+	my ($self, $timeout) = @_;
 	my $host = $self->{'ssh_host'};
 	my $user = $self->{'ssh_user'};
 	my $key = $self->{'ssh_key'};
@@ -533,7 +533,7 @@ sub ssh_start
 	msg("Waiting for prompt\n");
 
 	unless ($key) {
-		wait_regexp($self, qr/[Pp]assword:/);
+		wait_regexp($self, qr/[Pp]assword:/, 0, $timeout);
 		run_string($self, $self->{'root_password'});
 	}
 	sleep(1);    #hack wait for prompt
@@ -618,7 +618,7 @@ sub ssh_init
 
 sub sh_start
 {
-	my ($self) = @_;
+	my ($self, $timeout) = @_;
 	my $shell = $self->{'shell'};
 
 	msg("Starting $shell\n");
