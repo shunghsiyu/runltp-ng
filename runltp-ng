@@ -102,7 +102,7 @@ sub stop_exit($)
 }
 
 if ($sysinfo || $list) {
-	backend::start($backend);
+	backend::start($backend, $timeout);
 	if ($sysinfo) {
 		$sysinfo = utils::collect_sysinfo($backend);
 		utils::print_sysinfo($sysinfo);
@@ -117,7 +117,7 @@ if ($interactive) {
 }
 
 backend::set_logfile($backend, "$logname.raw");
-backend::start($backend);
+backend::start($backend, $timeout);
 
 if ($setup && install_pkg::install_ltp_pkgs($backend, $m32)) {
 	stop_exit(0);
