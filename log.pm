@@ -20,6 +20,7 @@
 
 use strict;
 use warnings;
+use POSIX;
 
 package log;
 require Exporter;
@@ -33,6 +34,7 @@ sub msg
 	my $val = shift();
 	my $level = 1;
 	my $msg;
+	my $prefix = POSIX::strftime("%m/%d %H:%M:%S: ", localtime);
 
 	if ($val =~ m/^\d+$/) {
 		$level = $val;
@@ -41,7 +43,7 @@ sub msg
 		$msg = $val;
 	}
 
-	print($msg) if $level <= $verbosity;
+	print($prefix . $msg) if $level <= $verbosity;
 }
 
 sub set_verbosity

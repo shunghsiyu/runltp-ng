@@ -67,6 +67,11 @@ sub try_readline
 	$poll->mask($self->{'out_fd'} => POLLIN);
 
 	while (1) {
+		if (!defined($timeout)) {
+			msg("$self->{'name'}: buf \"$self->{'buf'}\", polling FOREVER!\n");
+		} else {
+			msg("$self->{'name'}: buf \"$self->{'buf'}\", polling for $timeout!\n");
+		}
 		if ($poll->poll($timeout) == 0) {
 			msg("$self->{'name'}: Timeouted!\n");
 			return undef;
@@ -100,8 +105,11 @@ sub wait_regexp
 	msg("Waiting for regexp '$regexp'\n");
 
 	my $start_time = clock_gettime(CLOCK_MONOTONIC);
+	my $elapsed = 0;
+	my $last_msg = 0;
 
 	while (1) {
+		msg("$self->{'name'}: try_readline to look for regexp \"$regexp\"\n");
 		$line = try_readline($self, $timeout);
 
 		if (!defined($line)) {
@@ -121,15 +129,22 @@ sub wait_regexp
 			print($fh "$l\n") if defined($fh);
 		}
 		#print("N: $self->{'name'}: $line\n") if $verbose;
-
-		if (defined($timeout) and clock_gettime(CLOCK_MONOTONIC) - $start_time > $timeout) {
+		$elapsed = clock_gettime(CLOCK_MONOTONIC) - $start_time;
+		if (defined($timeout) and $elapsed > $timeout) {
 			msg("$self->{'name'}: timeouted!\n");
 			return @log;
+		} else {
+			my $timeout_value = $timeout;
+			$timeout_value //= 'undef';
+			msg("$self->{'name'}: elapsed $elapsed, timeout $timeout_value\n");
 		}
 
 		next if (defined($newline) && $newline && $line !~ /\n/);
 
-		last if ($line =~ m/$regexp/);
+		if ($line =~ m/$regexp/) {
+			msg("$self->{'name'}: got \"$line\", regexp matched!\n");
+			last;
+		}
 	}
 
 	return @log;
