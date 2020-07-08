@@ -465,10 +465,12 @@ sub run_ltp
 			next if ($ret == 0);
 
 			my $tainted = check_tainted($self);
+			$result->{'tainted'} = $tainted;
 			next if ($tainted == $start_tainted);
 			$err_msg = 'Kernel was tained' if (defined($tainted));
 		}
 
+		$result->{'reboot'} += 1;
 		last if (reboot($self, $err_msg, $timeout) != 0);
 		last if (setup_ltp_run($self, $ltpdir, $timeout) != 0);
 	}
