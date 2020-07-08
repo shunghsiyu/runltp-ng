@@ -294,7 +294,7 @@ sub setup_ltp_run($$$)
 			'export LTPROOT=$PWD',
 			'export TMPDIR=/tmp',
 			'export PATH=$LTPROOT/testcases/bin:$PATH',
-			'export LTP_TIMEOUT_MUL=' . ($timeout * 0.9) / 300,
+			'export LTP_TIMEOUT_MUL=' . ($timeout * 0.9) / 20,
 			'cd $LTPROOT/testcases/bin',
 		]);
 
