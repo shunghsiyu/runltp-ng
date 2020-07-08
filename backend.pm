@@ -157,10 +157,11 @@ sub wait_regexp
 
 sub wait_prompt
 {
-	my ($self) = @_;
+	my ($self, $timeout) = @_;
 
-	#TODO!
-	#wait_regexp($self, qr/ #\s*$/);
+	msg("$self->{'name'}: buf \"$self->{'buf'}\", waiting for prompt\n");
+	wait_regexp($self, qr/#|\$/, 0, $timeout);
+	sleep(1);
 }
 
 sub flush
@@ -196,6 +197,7 @@ sub run_cmd
 	if ($last =~ m/cmd-exit-$cmd_seq_cnt-(\d+)/) {
 		msg("Cmd exit value $1\n");
 		$ret = $1;
+		wait_prompt($self, $timeout);
 	} else {
 		push(@log, $last);
 		msg("Failed to parse exit value in '$last'\n");
@@ -204,7 +206,6 @@ sub run_cmd
 
 	$cmd_seq_cnt += 1;
 
-	wait_prompt($self);
 
 	wantarray ? ($ret, @log) : $ret;
 }
