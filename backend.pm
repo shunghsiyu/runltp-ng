@@ -108,6 +108,11 @@ sub wait_regexp
 	my $elapsed = 0;
 	my $last_msg = 0;
 
+	if ($self->{'buf'} =~ m/$regexp/) {
+		msg("$self->{'name'}: regexp matched the buffer \"$self->{'buf'}\"!\n");
+		return @log;
+	}
+
 	while (1) {
 		msg("$self->{'name'}: try_readline to look for regexp \"$regexp\"\n");
 		$line = try_readline($self, $timeout);
