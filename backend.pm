@@ -395,6 +395,7 @@ sub qemu_start
 sub qemu_stop($$)
 {
 	my ($self, $timeout) = @_;
+	my $ret;
 
 	close($self->{'transport'}) if defined($self->{'transport'});
 
@@ -412,6 +413,14 @@ sub qemu_stop($$)
 	}
 
 	msg("Failed to stop qemu, killing it!\n");
+
+	kill('TERM', $self->{'pid'});
+	return waitpid($self->{'pid'}, 0) < 0 ? -1 : 0;
+}
+
+sub qemu_force_stop($$)
+{
+	my ($self, $timeout) = @_;
 
 	kill('TERM', $self->{'pid'});
 	return waitpid($self->{'pid'}, 0) < 0 ? -1 : 0;
@@ -530,7 +539,7 @@ sub qemu_init
 	$backend{'interactive'} = \&qemu_interactive;
 	$backend{'start'} = \&qemu_start;
 	$backend{'stop'} = \&qemu_stop;
-	$backend{'force_stop'} = \&qemu_stop;
+	$backend{'force_stop'} = \&qemu_force_stop;
 	$backend{'name'} = 'qemu';
 	$backend{'buf'} = '';
 
