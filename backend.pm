@@ -495,7 +495,7 @@ sub qemu_init
 
 	$backend{'transport_fname'} = $transport_fname;
 	$backend{'qemu_params'} = "-enable-kvm -m $ram -smp $smp -display none";
-	$backend{'qemu_params'} .= " -device virtio-rng-pci";
+	$backend{'qemu_params'} .= " -nic user,model=virtio-net-pci -device virtio-rng-pci";
 	$backend{'qemu_system'} = 'x86_64';
 
 	if ($serial eq 'isa') {
