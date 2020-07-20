@@ -742,12 +742,14 @@ sub set_logfile
 sub read_file
 {
 	my ($self, $path) = @_;
+	my %run_cmd_args;
+	$run_cmd_args{'timeout'} = 30;
 
 	if (defined($self->{'read_file'})) {
 		return $self->{'read_file'}->($self, $path);
 	}
 
-	my @res = utils::run_cmd_retry($self, "cat $path");
+	my @res = utils::run_cmd_retry($self, "cat $path", \%run_cmd_args);
 
 	if ($res[0] != 0) {
 		print("Failed to read file $path");

@@ -75,9 +75,11 @@ sub collect_sysinfo
 	my ($self) = @_;
 	my %info;
 	my @log;
+    my %run_cmd_args;
+    $run_cmd_args{'timeout'} = 30;
 
-	if (utils::check_cmd_retry($self, 'uname')) {
-		@log = utils::run_cmd_retry($self, 'for i in m p r; do printf uname-$i; uname -$i; done');
+	if (utils::check_cmd_retry($self, 'uname', \%run_cmd_args)) {
+		@log = utils::run_cmd_retry($self, 'for i in m p r; do printf uname-$i; uname -$i; done', \%run_cmd_args);
 		for (@log) {
 			if (m/uname-m(.*)/) {
 				$info{'arch'} = $1;
@@ -91,7 +93,7 @@ sub collect_sysinfo
 		}
 	}
 
-	@log = utils::run_cmd_retry($self, 'cat /proc/meminfo');
+	@log = utils::run_cmd_retry($self, 'cat /proc/meminfo', \%run_cmd_args);
 	for (@log) {
 		if (m/SwapTotal:\s+(\d+)\s+kB/) {
 			$info{'swap'} = format_memsize($1);
@@ -102,7 +104,7 @@ sub collect_sysinfo
 		}
 	}
 
-	@log = utils::run_cmd_retry($self, 'cat /etc/os-release');
+	@log = utils::run_cmd_retry($self, 'cat /etc/os-release', \%run_cmd_args);
 	for (@log) {
 		if (m/^ID=\"?([^\"\n]*)\"?/) {
 			$info{'distribution'} = $1;
