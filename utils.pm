@@ -331,7 +331,7 @@ sub run_cmds_retry($$%)
 	my ($self, $cmd, %args) = @_;
 	my @ret;
 	$args{retries} //= 3;
-	$args{timeout} //= 30;
+	$args{timeout} //= 3600;
 
 	for my $cnt (1 .. $args{retries}) {
 		@ret = backend::run_cmds($self, $cmd, %args);
