@@ -75,11 +75,10 @@ sub collect_sysinfo
 	my ($self) = @_;
 	my %info;
 	my @log;
-    my %run_cmd_args;
-    $run_cmd_args{'timeout'} = 30;
+	my %run_cmd_args = ('timeout' => 30);
 
-	if (utils::check_cmd_retry($self, 'uname', \%run_cmd_args)) {
-		@log = utils::run_cmd_retry($self, 'for i in m p r; do printf uname-$i; uname -$i; done', \%run_cmd_args);
+	if (utils::check_cmd_retry($self, 'uname', %run_cmd_args)) {
+		@log = utils::run_cmd_retry($self, 'for i in m p r; do printf uname-$i; uname -$i; done', %run_cmd_args);
 		for (@log) {
 			if (m/uname-m(.*)/) {
 				$info{'arch'} = $1;
@@ -93,7 +92,7 @@ sub collect_sysinfo
 		}
 	}
 
-	@log = utils::run_cmd_retry($self, 'cat /proc/meminfo', \%run_cmd_args);
+	@log = utils::run_cmd_retry($self, 'cat /proc/meminfo', %run_cmd_args);
 	for (@log) {
 		if (m/SwapTotal:\s+(\d+)\s+kB/) {
 			$info{'swap'} = format_memsize($1);
@@ -104,7 +103,7 @@ sub collect_sysinfo
 		}
 	}
 
-	@log = utils::run_cmd_retry($self, 'cat /etc/os-release', \%run_cmd_args);
+	@log = utils::run_cmd_retry($self, 'cat /etc/os-release', %run_cmd_args);
 	for (@log) {
 		if (m/^ID=\"?([^\"\n]*)\"?/) {
 			$info{'distribution'} = $1;
@@ -289,16 +288,19 @@ sub check_tainted
 sub setup_ltp_run($$$)
 {
 	my ($self, $ltpdir, $timeout) = @_;
+	my %run_cmd_args = ('timeout' => $timeout);
 
 	my $ret = utils::run_cmds_retry($self,
 		[
+			"echo 0 > /proc/sys/vm/oom_dump_tasks",
+			"for f in /sys/kernel/debug/fail*/verbose; do echo 1 >\$f; done",
 			"cd $ltpdir",
 			'export LTPROOT=$PWD',
 			'export TMPDIR=/tmp',
 			'export PATH=$LTPROOT/testcases/bin:$PATH',
 			'export LTP_TIMEOUT_MUL=' . ($timeout * 0.9) / 20,
 			'cd $LTPROOT/testcases/bin',
-		]);
+		], %run_cmd_args);
 
 	return $ret;
 }
@@ -464,15 +466,19 @@ sub run_ltp
 
 		my $err_msg = 'Machine stopped respoding';
 		if (defined($ret)) {
-			next if ($ret == 0);
-
-			my $tainted = check_tainted($self);
-			$result->{'tainted'} = $tainted;
-			next if ($tainted == $start_tainted);
-			$err_msg = 'Kernel was tained' if (defined($tainted));
+			if ($ret == 0) {
+				$err_msg = 'Success' if ($ret == 0);
+			} else {
+				my $tainted = check_tainted($self);
+				if (defined($tainted)) {
+					$result->{'tainted'} = $tainted;
+					$err_msg = 'Kernel was tained' if $tainted;
+				}
+			}
 		}
 
 		$result->{'reboot'} += 1;
+		$result->{'err_msg'} = $err_msg;
 		last if (reboot($self, $err_msg, $timeout) != 0);
 		last if (setup_ltp_run($self, $ltpdir, $timeout) != 0);
 	}

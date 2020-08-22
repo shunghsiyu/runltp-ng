@@ -24,6 +24,7 @@ use strict;
 use warnings;
 
 use Time::HiRes qw(clock_gettime CLOCK_MONOTONIC);
+use List::Util qw(max);
 
 use IPC::Open2;
 use POSIX ":sys_wait_h";
@@ -79,7 +80,7 @@ sub try_readline
 
 		my $buf = '';
 		my $ret = sysread($self->{'out_fd'}, $buf, 128);
-		#print("R: '$buf'\n");
+		print("R: '$buf'\n");
 		$self->{'buf'} .= $buf;
 		last if !defined($ret) && $!{EAGAIN};
 		last if $ret > 0;
@@ -110,16 +111,20 @@ sub wait_regexp
 
 	if ($self->{'buf'} =~ m/$regexp/) {
 		msg("$self->{'name'}: regexp matched the buffer \"$self->{'buf'}\"!\n");
+		if (!@log) {
+			push(@log, "");
+		}
 		return @log;
 	}
 
 	while (1) {
 		msg("$self->{'name'}: try_readline to look for regexp \"$regexp\"\n");
 		$line = try_readline($self, $timeout);
+		msg("$self->{'name'}: line \"$line\"\n");
 
 		if (!defined($line)) {
 			msg("$self->{'name'}: died!\n");
-			return @log;
+			return undef;
 		}
 
 		if ($line =~ /\n/) {
@@ -158,10 +163,12 @@ sub wait_regexp
 sub wait_prompt
 {
 	my ($self, $timeout) = @_;
+	my @log;
 
 	msg("$self->{'name'}: buf \"$self->{'buf'}\", waiting for prompt\n");
-	wait_regexp($self, qr/#|\$/, 0, $timeout);
+	@log = wait_regexp($self, qr/#|\$/, 0, $timeout);
 	sleep(1);
+	return @log;
 }
 
 sub flush
@@ -288,7 +295,8 @@ sub reboot($$)
 
 	my $ret = force_stop($self, $timeout);
 	return $ret if ($ret != 0);
-	$ret = start($self, $timeout);
+	$self->{'buf'} = '';
+	$ret = start($self, max(300, $timeout));
 	return $ret;
 }
 
@@ -311,6 +319,7 @@ sub qemu_read_file($$)
 
 	while (1) {
 		my $line = <$fh>;
+		die() if !defined($line);
 		# Strip CR LF
 		$line =~ s/(\x0d|\x0a)//g;
 		last if ($line eq "runltp-ng-magic-end-of-file-string");
@@ -381,11 +390,14 @@ sub qemu_start
 	msg("Waiting for qemu to boot the machine\n");
 
 	wait_regexp($self, qr/login:/, 0, $timeout);
+	sleep(1);
 	run_string($self, "root");
 	wait_regexp($self, qr/[Pp]assword:/, 0, $timeout);
+	sleep(1);
 	run_string($self, "$self->{'root_password'}");
-	wait_prompt($self);
+	wait_prompt($self, $timeout);
 	run_string($self, "export PS1=\$ ");
+	wait_prompt($self, $timeout);
 
 	if (defined($self->{'qemu_virtfs'})) {
 		run_cmd($self, 'mount -t 9p -o trans=virtio host /mnt');
@@ -499,16 +511,17 @@ sub qemu_init
 
 	if ($serial eq 'isa') {
 		$backend{'transport_dev'} = 'ttyS1';
-		$backend{'qemu_params'} .= " -chardev stdio,id=tty,logfile=$tty_log.log -serial chardev:tty";
+		$backend{'qemu_params'} .= " -chardev stdio,mux=on,id=tty,logfile=$tty_log.log -serial chardev:tty";
 		$backend{'qemu_params'} .= " -serial chardev:transport -chardev file,id=transport,path=$transport_fname";
 	} elsif ($serial eq 'virtio') {
 		$backend{'transport_dev'} = 'vport1p1';
 		$backend{'qemu_params'} .= " -device virtio-serial";
-		$backend{'qemu_params'} .= " -chardev stdio,id=tty,logfile=$tty_log.log --device virtconsole,chardev=tty";
+		$backend{'qemu_params'} .= " -chardev stdio,mux=on,id=tty,logfile=$tty_log.log --device virtconsole,chardev=tty";
 		$backend{'qemu_params'} .= " -device virtserialport,chardev=transport -chardev file,id=transport,path=$transport_fname";
 	} else {
 		die("Unupported serial device type $backend{'qemu_serial'}");
 	}
+	$backend{'qemu_params'} .= " -mon chardev=tty,mode=readline";
 
 	die('Qemu image not defined') unless defined($backend{'qemu_image'});
 
@@ -523,7 +536,8 @@ sub qemu_init
 		    . $backend{'qemu_ro_image'};
 	}
 
-	$backend{'qemu_params'} .= " -nic user,model=virtio-net-pci -device virtio-rng-pci";
+	$backend{'qemu_params'} .= " -nic user,model=virtio-net-pci";
+	$backend{'qemu_params'} .= " -device virtio-rng-pci";
 
 	if (defined($backend{'qemu_opts'})) {
 		$backend{'qemu_params'} .= ' ' . $backend{'qemu_opts'};
@@ -583,10 +597,10 @@ sub ssh_start
 		run_string($self, $self->{'root_password'});
 	}
 	sleep(1);    #hack wait for prompt
-	wait_prompt($self);
+	wait_prompt($self, $timeout);
 	if ($user ne 'root') {
 		run_string($self, 'sudo /bin/sh');
-		wait_prompt($self);
+		wait_prompt($self, $timeout);
 	}
 	return 0;
 }
@@ -677,7 +691,7 @@ sub sh_start
 	$self->{'out_fd'} = $sh_out;
 
 	run_string($self, 'export PS1="# "');
-	wait_prompt($self);
+	wait_prompt($self, $timeout);
 }
 
 my $sh_params = [
@@ -742,14 +756,13 @@ sub set_logfile
 sub read_file
 {
 	my ($self, $path) = @_;
-	my %run_cmd_args;
-	$run_cmd_args{'timeout'} = 30;
+	my %run_cmd_args = ('timeout' => 30);
 
 	if (defined($self->{'read_file'})) {
 		return $self->{'read_file'}->($self, $path);
 	}
 
-	my @res = utils::run_cmd_retry($self, "cat $path", \%run_cmd_args);
+	my @res = utils::run_cmd_retry($self, "cat $path", %run_cmd_args);
 
 	if ($res[0] != 0) {
 		print("Failed to read file $path");

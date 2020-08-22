@@ -21,6 +21,7 @@
 use strict;
 use warnings;
 use Getopt::Long;
+use List::Util qw(max);
 
 use lib './';
 use log;
@@ -66,6 +67,7 @@ GetOptions(
 	"verbose" => \$verbose,
 	"timeout=i" => \$timeout
 ) or die("Error in argument parsing!\n");
+my $start_timeout = max(300, $timeout);
 
 if ($help) {
 	print("Options\n-------\n\n");
@@ -102,7 +104,7 @@ sub stop_exit($)
 }
 
 if ($sysinfo || $list) {
-	backend::start($backend, $timeout);
+	backend::start($backend, $start_timeout);
 	if ($sysinfo) {
 		$sysinfo = utils::collect_sysinfo($backend);
 		utils::print_sysinfo($sysinfo);
@@ -117,20 +119,21 @@ if ($interactive) {
 }
 
 backend::set_logfile($backend, "$logname.raw");
-backend::start($backend, $timeout);
+backend::start($backend, $start_timeout);
 
 if ($setup && install_pkg::install_ltp_pkgs($backend, $m32)) {
 	stop_exit(0);
 }
 
 if ($cmd) {
-	my @result = backend::run_cmd($backend, $cmd);
+	my @result = backend::run_cmd($backend, $cmd, $timeout);
 	print("$_\n") for (@result);
 }
 
 if ($install && utils::install_ltp($backend, $ltpdir, $install, $m32, $run, $repouri)) {
 	stop_exit(0);
 }
+
 
 if (!backend::run_cmd($backend, "! [ -e $ltpdir ]", $timeout)) {
 	print("LTP dir '$ltpdir' doesn't exist\n");

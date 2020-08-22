@@ -57,13 +57,12 @@ sub foo_to_pkg
 sub detect_distro
 {
 	my ($self) = @_;
-    my %run_cmd_args;
-    $run_cmd_args{'timeout'} = 30;
+	my %run_cmd_args = ('timeout' => 30);
 
-	if (utils::run_cmd_retry($self, 'grep -q debian /etc/os-release', \%run_cmd_args) == 0) {
+	if (utils::run_cmd_retry($self, 'grep -q debian /etc/os-release', %run_cmd_args) == 0) {
 		return "debian";
 	}
-	if (utils::run_cmd_retry($self, 'grep -q suse /etc/os-release', \%run_cmd_args) == 0) {
+	if (utils::run_cmd_retry($self, 'grep -q suse /etc/os-release', %run_cmd_args) == 0) {
 		return "suse";
 	}
 
