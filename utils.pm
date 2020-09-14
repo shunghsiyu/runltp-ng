@@ -294,6 +294,7 @@ sub setup_ltp_run($$$)
 		[
 			"echo 0 > /proc/sys/vm/oom_dump_tasks",
 			"for f in /sys/kernel/debug/fail*/verbose; do echo 1 >\$f; done",
+			"for f in /proc/sys/kernel/panic_on_*; do echo 1 >\$f; done",
 			"cd $ltpdir",
 			'export LTPROOT=$PWD',
 			'export TMPDIR=/tmp',
