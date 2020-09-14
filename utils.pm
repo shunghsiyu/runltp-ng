@@ -298,7 +298,7 @@ sub setup_ltp_run($$$)
 			'export LTPROOT=$PWD',
 			'export TMPDIR=/tmp',
 			'export PATH=$LTPROOT/testcases/bin:$PATH',
-			'export LTP_TIMEOUT_MUL=' . ($timeout * 0.9) / 20,
+			'export LTP_TIMEOUT_MUL=' . ($timeout * 0.8) / 20,
 			'cd $LTPROOT/testcases/bin',
 		], %run_cmd_args);
 
@@ -436,7 +436,9 @@ sub run_ltp
 
 		print("Executing $tid\n");
 		my $test_start_time = clock_gettime(CLOCK_MONOTONIC);
-		my ($ret, @log) = backend::run_cmd($self, "$c", $timeout);
+		my $sigterm_timeout = $timeout * 0.85;
+		my $sigkill_timeout = $timeout * 0.9;
+		my ($ret, @log) = backend::run_cmd($self, "timeout -k $sigkill_timeout $sigterm_timeout $c", $timeout);
 		my $test_end_time = clock_gettime(CLOCK_MONOTONIC);
 
 		my $result = {};
