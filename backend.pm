@@ -114,7 +114,7 @@ sub wait_regexp
 		if (!@log) {
 			push(@log, "");
 		}
-		return @log;
+		return (1, @log);
 	}
 
 	while (1) {
@@ -124,7 +124,7 @@ sub wait_regexp
 
 		if (!defined($line)) {
 			msg("$self->{'name'}: died!\n");
-			return undef;
+			return (0, @log);
 		}
 
 		if ($line =~ /\n/) {
@@ -142,7 +142,7 @@ sub wait_regexp
 		$elapsed = clock_gettime(CLOCK_MONOTONIC) - $start_time;
 		if (defined($timeout) and $elapsed > $timeout) {
 			msg("$self->{'name'}: timeouted!\n");
-			return @log;
+			return (0, @log);
 		} else {
 			my $timeout_value = $timeout;
 			$timeout_value //= 'undef';
@@ -157,16 +157,15 @@ sub wait_regexp
 		}
 	}
 
-	return @log;
+	return (1, @log);
 }
 
 sub wait_prompt
 {
 	my ($self, $timeout) = @_;
-	my @log;
 
 	msg("$self->{'name'}: buf \"$self->{'buf'}\", waiting for prompt\n");
-	@log = wait_regexp($self, qr/#|\$/, 0, $timeout);
+	my ($success, @log) = wait_regexp($self, qr/#|\$/, 0, $timeout);
 	sleep(1);
 	return @log;
 }
@@ -193,11 +192,10 @@ my $cmd_seq_cnt = 0;
 sub run_cmd
 {
 	my ($self, $cmd, $timeout) = @_;
-	my @log;
 	my $ret;
 
 	run_string($self, "$cmd; echo cmd-exit-$cmd_seq_cnt-\$?");
-	@log = wait_regexp($self, qr/cmd-exit-$cmd_seq_cnt-\d+/, 1, $timeout);
+	my ($success, @log) = wait_regexp($self, qr/cmd-exit-$cmd_seq_cnt-\d+/, 1, $timeout);
 
 	my $last = pop(@log);
 
