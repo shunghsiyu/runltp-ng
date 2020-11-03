@@ -80,7 +80,7 @@ sub try_readline
 
 		my $buf = '';
 		my $ret = sysread($self->{'out_fd'}, $buf, 128);
-		print("R: '$buf'\n");
+		#print("R: '$buf'\n");
 		$self->{'buf'} .= $buf;
 		last if !defined($ret) && $!{EAGAIN};
 		last if $ret > 0;
